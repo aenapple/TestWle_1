@@ -21,15 +21,16 @@ extern "C" float GetTemperature(void)
 	return(TemperatureSensor.GetData());
 }
 
-void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
-{
-	TemperatureSensor.TxComplete();
-}
+//void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
+//{
+//	TemperatureSensor.TxComplete();
+//}
+//
+//void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
+//{
+//	TemperatureSensor.RxComplete();
+//}
 
-void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
-{
-	TemperatureSensor.RxComplete();
-}
 
 /**********************************************************************************/
 //==================================================================================

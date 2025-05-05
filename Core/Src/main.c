@@ -58,6 +58,8 @@ static void MX_RTC_Init(void);
 static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 extern float GetTemperature(void);
+extern uint8_t Init(void);
+extern uint8_t GetStatusFifo(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -156,14 +158,18 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  Init();
   while (1)
   {
     /* USER CODE END WHILE */
     MX_LoRaWAN_Process();
 
     /* USER CODE BEGIN 3 */
-    HAL_Delay(10);
-    GetTemperature();
+    HAL_Delay(1000);
+    GetStatusFifo();
+
+
+
   }
   /* USER CODE END 3 */
 }
@@ -387,6 +393,7 @@ void MX_SUBGHZ_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
@@ -394,6 +401,16 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+
+  /*Configure GPIO pin : INT2_Pin */
+  GPIO_InitStruct.Pin = INT2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(INT2_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
