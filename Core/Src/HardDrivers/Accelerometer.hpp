@@ -10,7 +10,7 @@
 #define __Accelerometer_H
 
 /**********************************************************************************/
-#include "main.h"
+#include "SystemDefines.h"
 
 
 /**********************************************************************************/
@@ -36,10 +36,10 @@
 #define ACCELEROMETER_I2C_CTRL5_C  0x14
 #define ACCELEROMETER_I2C_CTRL6_C  0x15
 
+#define ACCELEROMETER_I2C_FIFO_DATA_OUT_TAG  0x78
 
+#define ACCELEROMETER_I2C_FIFO_SIZE  ( /* 512 */ 10 * 7)
 
-
-#define ACCELEROMETER_I2C_RESULT_OK  0x00
 
 // #define ACCELEROMETER_I2C_CTRL6_C  0x15
 
@@ -51,6 +51,11 @@ enum EAccelerometerAccess
 	AccelerometerAccess_Disable,
 };
 
+enum EAccelerometerRxMode
+{
+	AccelerometerRxMode_Register,
+	AccelerometerRxMode_Fifo,
+};
 
 /**********************************************************************************/
 //==================================================================================
@@ -64,10 +69,22 @@ public:
 
 
 	////// functions //////
-	uint8_t Init(void);
+	ESystemResult Init(void);
+	ESystemResult StartFifo(void);
+	ESystemResult ReadFifo(void);
+
+	uint16_t GetSizeDataFifo(void)
+	{
+		return(this->sizeDataFifo);
+	}
+	uint8_t* GetPtrDataFifo(void)
+	{
+		return(this->bufferDmaFifo);
+	}
+
+
 	float GetData(void);
-	void Int2(void);
-	uint8_t GetStatusFifo(void);
+	void InterruptFifoReady(void);
 	void TxComplete(void);
 	void RxComplete(void);
 
@@ -83,27 +100,33 @@ protected:
 
 private:
 	////// variables //////
-	bool flagRx;
+	volatile bool flagFifoReady;
+	volatile EAccelerometerRxMode rxMode;
+	volatile bool flagRx;
 	uint8_t bufferWr[2];
 	uint8_t bufferRd[2];
-//	uint8_t bufferRd[20];
-//	uint8_t indexRd;
 
+	uint8_t bufferDmaFifo[ACCELEROMETER_I2C_FIFO_SIZE];
+	uint16_t sizeDataFifo;
 
 	////// constants //////
 
 
 	////// functions //////
-	uint8_t Reset(void);
-	uint8_t SetFifo(void);
-	uint8_t GyroscopeSetPowerDown(void);
-	uint8_t AccelerometerSetPowerDown(void);
-	uint8_t SetODR(void);
-	uint8_t EnableLowPowerMode(void);
-	uint8_t EnableUltraLowPowerMode(void);
-	uint8_t EnableAccess(EAccelerometerAccess accelerometerAccess);
-	uint8_t WriteRegister(uint8_t addressRegister, uint8_t byteData);
-	uint8_t ReadRegister(uint8_t addressRegister);
+	ESystemResult Reset(void);
+	ESystemResult GyroscopeSetPowerDown(void);
+	ESystemResult AccelerometerSetPowerDown(void);
+	ESystemResult SetODR(void);
+	ESystemResult SetFifo(void);
+	ESystemResult EnableLowPowerMode(void);
+	ESystemResult EnableUltraLowPowerMode(void);
+	ESystemResult EnableAccess(EAccelerometerAccess accelerometerAccess);
+	ESystemResult WriteRegister(uint8_t addressRegister, uint8_t byteData);
+	ESystemResult ReadRegister(uint8_t addressRegister);
+	ESystemResult WaitRxComplete(uint16_t timeout);
+	ESystemResult StartReadFifo(void);
+	ESystemResult GetStatusFifo(void);
+
 
 };
 //=== end class TAccelerometer =====================================================

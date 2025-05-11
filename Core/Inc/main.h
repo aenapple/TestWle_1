@@ -58,9 +58,14 @@ void MX_SUBGHZ_Init(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define INT1_Pin GPIO_PIN_5
+#define INT1_GPIO_Port GPIOB
+#define INT1_EXTI_IRQn EXTI9_5_IRQn
 #define INT2_Pin GPIO_PIN_0
 #define INT2_GPIO_Port GPIOA
 #define INT2_EXTI_IRQn EXTI0_IRQn
+#define DEBUG_OUT_Pin GPIO_PIN_9
+#define DEBUG_OUT_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

@@ -16,30 +16,6 @@ extern I2C_HandleTypeDef hi2c2;
 
 
 /**********************************************************************************/
-extern "C" uint8_t Init(void)
-{
-	return(Accelerometer.Init());
-}
-
-extern "C" uint8_t GetStatusFifo(void)
-{
-	return(Accelerometer.GetStatusFifo());
-}
-
-void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
-{
-	Accelerometer.TxComplete();
-}
-
-void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
-{
-	Accelerometer.RxComplete();
-}
-
-void HAL_GPIO_EXTI_Callback(uint16_t gpioPin)
-{
-	Accelerometer.Int2();
-}
 
 
 /**********************************************************************************/
@@ -49,57 +25,55 @@ void HAL_GPIO_EXTI_Callback(uint16_t gpioPin)
 *
 *  @return void .
 */
-uint8_t TAccelerometer::Init()
+ESystemResult TAccelerometer::Init()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	result = this->Reset();
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	result = this->ReadRegister(ACCELEROMETER_I2C_FUNC_CFG_ACCESS);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	result = this->AccelerometerSetPowerDown();
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
-//	return(ACCELEROMETER_I2C_RESULT_OK);
-
 	result = this->GyroscopeSetPowerDown();
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	result = this->EnableLowPowerMode();
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	result = this->EnableUltraLowPowerMode();
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	result = this->SetODR();
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	result = this->SetFifo();
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
@@ -109,7 +83,7 @@ uint8_t TAccelerometer::Init()
 
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end Init =====================================================================
 
@@ -165,13 +139,15 @@ float TAccelerometer::GetData()
 *
 *  @return void .
 */
-void TAccelerometer::Int2()
+void TAccelerometer::InterruptFifoReady()
 {
-//	this->AccelerometerSetPowerDown();
-	__NOP();
-	__NOP();
+//	__NOP();
+//	__NOP();
+
+	this->flagFifoReady = true;
+
 }
-//=== end Int2 =====================================================================
+//=== end InterruptFifoReady =======================================================
 
 //==================================================================================
 /**
@@ -179,9 +155,9 @@ void TAccelerometer::Int2()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::Reset()
+ESystemResult TAccelerometer::Reset()
 {
-	uint8_t result;
+	ESystemResult result;
 
 	/*
 	 * Register address automatically incremented during a multiple byte access with a serial interface (I2C or SPI)
@@ -189,13 +165,13 @@ uint8_t TAccelerometer::Reset()
 	 * 0000 0101
 	 */
 	result = this->WriteRegister(ACCELEROMETER_I2C_CTRL3_C, 0x05);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end SetODR ===================================================================
 
@@ -205,9 +181,9 @@ uint8_t TAccelerometer::Reset()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::SetFifo()
+ESystemResult TAccelerometer::SetFifo()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	/*
@@ -215,8 +191,8 @@ uint8_t TAccelerometer::SetFifo()
 	 * 1000 0000
 	 */
 //	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL1, 0x80);
-	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL1, 0x1A);  // DEBUG
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL1, 0x0A);  // DEBUG
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
@@ -229,7 +205,7 @@ uint8_t TAccelerometer::SetFifo()
 	 */
 //	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL2, 0x81);
 	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL2, 0x80);  // DEBUG
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
@@ -240,17 +216,29 @@ uint8_t TAccelerometer::SetFifo()
 	 * 0000 1011
 	 */
 	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL3, 0x0B);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
+
+	this->flagFifoReady = false;
 
 	/*
 	 * Enables FIFO threshold interrupt on INT2 pin
 	 * 0000 1000
 	 */
-	result = this->WriteRegister(ACCELEROMETER_I2C_INT2_CTRL, 0x28);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+//	result = this->WriteRegister(ACCELEROMETER_I2C_INT2_CTRL, 0x08);
+//	if(result > ACCELEROMETER_I2C_RESULT_OK)
+//	{
+//		return(result);
+//	}
+
+	/*
+	 * Enables FIFO threshold interrupt on INT1 pin
+	 * 0000 1000
+	 */
+	result = this->WriteRegister(ACCELEROMETER_I2C_INT1_CTRL, 0x08);
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
@@ -262,16 +250,14 @@ uint8_t TAccelerometer::SetFifo()
 	 * 001 - FIFO mode: stops collecting data when FIFO is full
 	 * 0000 0001
 	 */
-	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL4, 0x01);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
-	{
-		return(result);
-	}
+//	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL4, 0x01);
+//	if(result != SystemResult_Ok)
+//	{
+//		return(result);
+//	}
 
 
-
-
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end SetFifo ==================================================================
 
@@ -281,9 +267,9 @@ uint8_t TAccelerometer::SetFifo()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::GyroscopeSetPowerDown()
+ESystemResult TAccelerometer::GyroscopeSetPowerDown()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	/*
@@ -293,21 +279,21 @@ uint8_t TAccelerometer::GyroscopeSetPowerDown()
 	 * binary - 0000 0000
 	 */
 	result = this->WriteRegister(ACCELEROMETER_I2C_CTRL2_G, 0x00);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	// DEBUG
-	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL2_G);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
-	{
-		return(result);
-	}
+//	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL2_G);
+//	if(result != AccelerometerResult_Ok)
+//	{
+//		return(result);
+//	}
 	// DEBUG
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end GyroscopeSetPowerDown ================================================
 
@@ -317,9 +303,9 @@ uint8_t TAccelerometer::GyroscopeSetPowerDown()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::AccelerometerSetPowerDown()
+ESystemResult TAccelerometer::AccelerometerSetPowerDown()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	/*
@@ -329,21 +315,21 @@ uint8_t TAccelerometer::AccelerometerSetPowerDown()
 	 * binary - 0000 0000
 	 */
 	result = this->WriteRegister(ACCELEROMETER_I2C_CTRL1_XL, 0x00);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	// DEBUG
-	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL1_XL);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
-	{
-		return(result);
-	}
+//	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL1_XL);
+//	if(result != AccelerometerResult_Ok)
+//	{
+//		return(result);
+//	}
 	// DEBUG
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end AccelerometerSetPowerDown ================================================
 
@@ -353,9 +339,9 @@ uint8_t TAccelerometer::AccelerometerSetPowerDown()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::SetODR()
+ESystemResult TAccelerometer::SetODR()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	/*
@@ -365,21 +351,21 @@ uint8_t TAccelerometer::SetODR()
 	 * binary - 1011 0000
 	 */
 	result = this->WriteRegister(ACCELEROMETER_I2C_CTRL1_XL, 0xB0);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	// DEBUG
-	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL1_XL);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
-	{
-		return(result);
-	}
+//	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL1_XL);
+//	if(result != SystemResult_Ok)
+//	{
+//		return(result);
+//	}
 	// DEBUG
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end SetODR ===================================================================
 
@@ -389,32 +375,32 @@ uint8_t TAccelerometer::SetODR()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::EnableLowPowerMode()
+ESystemResult TAccelerometer::EnableLowPowerMode()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	/*
-	 * Edge-sensitive trigger mode is selected
+	 * Data enable off
 	 * high-performance operating mode disabled
-	 * binary - 1001 0000
+	 * binary - 0001 0000
 	 */
 	result = this->WriteRegister(ACCELEROMETER_I2C_CTRL6_C, 0x90);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	// DEBUG
-	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL6_C);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
-	{
-		return(result);
-	}
+//	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL6_C);
+//	if(result != SystemResult_Ok)
+//	{
+//		return(result);
+//	}
 	// DEBUG
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end EnableLowPowerMode =======================================================
 
@@ -424,9 +410,9 @@ uint8_t TAccelerometer::EnableLowPowerMode()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::EnableUltraLowPowerMode()
+ESystemResult TAccelerometer::EnableUltraLowPowerMode()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	/*
@@ -434,21 +420,21 @@ uint8_t TAccelerometer::EnableUltraLowPowerMode()
 	 * binary - 1000 0000
 	 */
 	result = this->WriteRegister(ACCELEROMETER_I2C_CTRL5_C, 0x80);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 	// DEBUG
-	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL5_C);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
-	{
-		return(result);
-	}
+//	result = this->ReadRegister(ACCELEROMETER_I2C_CTRL5_C);
+//	if(result != SystemResult_Ok)
+//	{
+//		return(result);
+//	}
 	// DEBUG
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end EnableUltraLowPowerMode ==================================================
 
@@ -458,9 +444,9 @@ uint8_t TAccelerometer::EnableUltraLowPowerMode()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::EnableAccess(EAccelerometerAccess accelerometerAccess)
+ESystemResult TAccelerometer::EnableAccess(EAccelerometerAccess accelerometerAccess)
 {
-	uint8_t result;
+	ESystemResult result;
 
 
 	if(accelerometerAccess == AccelerometerAccess_Enable)
@@ -472,13 +458,13 @@ uint8_t TAccelerometer::EnableAccess(EAccelerometerAccess accelerometerAccess)
 		result = this->WriteRegister(ACCELEROMETER_I2C_FUNC_CFG_ACCESS, 0x00);
 	}
 
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
+	if(result != SystemResult_Ok)
 	{
 		return(result);
 	}
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end EnableAccess =============================================================
 
@@ -488,48 +474,51 @@ uint8_t TAccelerometer::EnableAccess(EAccelerometerAccess accelerometerAccess)
 *
 *  @return void .
 */
-uint8_t TAccelerometer::GetStatusFifo()
+ESystemResult TAccelerometer::GetStatusFifo()
 {
-	uint8_t result;
+	ESystemResult result;
 
 
-	result = this->ReadRegister(ACCELEROMETER_I2C_FIFO_STATUS2);
-	if(result > ACCELEROMETER_I2C_RESULT_OK)
-	{
-		return(result);
-	}
+//	result = this->ReadRegister(ACCELEROMETER_I2C_FIFO_STATUS2);
+//	if(result > ACCELEROMETER_I2C_RESULT_OK)
+//	{
+//		return(result);
+//	}
 
-	if(this->bufferRd[0] & 0x80)
-	{
-		result = this->ReadRegister(ACCELEROMETER_I2C_FIFO_STATUS1);
-		if(result > ACCELEROMETER_I2C_RESULT_OK)
+
+//	if(this->bufferRd[0] & 0x80)
+//	{
+		result = this->ReadRegister(ACCELEROMETER_I2C_FIFO_STATUS2);
+		if(result != SystemResult_Ok)
 		{
 			return(result);
 		}
+
+		this->sizeDataFifo = this->bufferRd[0] & 0x03;
+		this->sizeDataFifo <<= 8;
+
+		result = this->ReadRegister(ACCELEROMETER_I2C_FIFO_STATUS1);
+		if(result != SystemResult_Ok)
+		{
+			return(result);
+		}
+
+		this->sizeDataFifo += this->bufferRd[0];
 
 		////// Reset FIFO mode //////
 		result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL4, 0x00);
-		if(result > ACCELEROMETER_I2C_RESULT_OK)
+		if(result != SystemResult_Ok)
 		{
 			return(result);
 		}
 
-		////// Start FIFO mode //////
-		/*
-		 * 00 - Timestamp not batched in FIFO (default)
-		 * 00 - Temperature not batched in FIFO (default)
-		 * 001 - FIFO mode: stops collecting data when FIFO is full
-		 * 0000 0001
-		 */
-		result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL4, 0x01);
-		if(result > ACCELEROMETER_I2C_RESULT_OK)
-		{
-			return(result);
-		}
-	}
+		this->flagFifoReady = false;
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+//	}
+
+
+	return(SystemResult_Ok);
 }
 //=== end GetStatusFifo ============================================================
 
@@ -539,25 +528,114 @@ uint8_t TAccelerometer::GetStatusFifo()
 *
 *  @return void .
 */
-uint8_t TAccelerometer::ReadRegister(uint8_t addressRegister)
+ESystemResult TAccelerometer::ReadFifo()
 {
+	ESystemResult result;
+
+
+	result = this->ReadRegister(ACCELEROMETER_I2C_FIFO_STATUS2);
+	if(result != SystemResult_Ok)
+	{
+		return(result);
+	}
+
+	this->sizeDataFifo = this->bufferRd[0] & 0x03;
+	this->sizeDataFifo <<= 8;
+
+	result = this->ReadRegister(ACCELEROMETER_I2C_FIFO_STATUS1);
+	if(result != SystemResult_Ok)
+	{
+		return(result);
+	}
+
+	this->sizeDataFifo += this->bufferRd[0];
+	this->sizeDataFifo = this->sizeDataFifo * 7;
+
+//	for(uint16_t i = 0; i < this->sizeDataFifo; i++)
+//	{
+		result = this->StartReadFifo();
+		if(result != SystemResult_Ok)
+		{
+			return(result);
+		}
+
+		result = this->WaitRxComplete(200);
+		if(result != SystemResult_Ok)
+		{
+			return(result);
+		}
+
+//	}
+
+	////// Reset FIFO mode //////
+	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL4, 0x00);
+	if(result != SystemResult_Ok)
+	{
+		return(result);
+	}
+
+
+	return(SystemResult_Ok);
+}
+//=== end ReadFifo =================================================================
+
+//==================================================================================
+/**
+*  Todo: function description.
+*
+*  @return void .
+*/
+ESystemResult TAccelerometer::StartFifo()
+{
+	ESystemResult result;
+
+
+	////// Start FIFO mode //////
+	/*
+	 * 00 - Timestamp not batched in FIFO (default)
+	 * 00 - Temperature not batched in FIFO (default)
+	 * 001 - FIFO mode: stops collecting data when FIFO is full
+	 * 0000 0001
+	 */
+	result = this->WriteRegister(ACCELEROMETER_I2C_FIFO_CTRL4, 0x01);
+	if(result != SystemResult_Ok)
+	{
+		return(result);
+	}
+
+
+	return(SystemResult_Ok);
+}
+//=== end StartFifo ================================================================
+
+//==================================================================================
+/**
+*  Todo: function description.
+*
+*  @return void .
+*/
+ESystemResult TAccelerometer::ReadRegister(uint8_t addressRegister)
+{
+	ESystemResult result;
+
+
 	this->flagRx = false;
+	this->rxMode = AccelerometerRxMode_Register;
+
 	this->bufferWr[0] = addressRegister;
 	if(HAL_I2C_Master_Seq_Transmit_IT(&hi2c2, ACCELEROMETER_I2C_DEV_ADDRESS, this->bufferWr, 1, I2C_FIRST_FRAME) != HAL_OK)
 	{
-		return(ACCELEROMETER_I2C_RESULT_OK + 1);
+		return(SystemResult_ErrorTxI2c2);
 	}
 
-	while(true)
+	result = this->WaitRxComplete(100);
+	if(result != SystemResult_Ok)
 	{
-		if(this->flagRx)
-		{
-			break;
-		}
+		return(result);
 	}
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end ReadRegister =============================================================
 
@@ -567,17 +645,71 @@ uint8_t TAccelerometer::ReadRegister(uint8_t addressRegister)
 *
 *  @return void .
 */
-uint8_t TAccelerometer::WriteRegister(uint8_t addressRegister, uint8_t byteData)
+ESystemResult TAccelerometer::WaitRxComplete(uint16_t timeout)
+{
+	uint32_t startTick;
+	uint32_t currentTick;
+
+
+	startTick = HAL_GetTick();
+
+	while(true)
+	{
+		if(this->flagRx)
+		{
+			break;
+		}
+
+		currentTick = HAL_GetTick();
+		if((currentTick - startTick) > timeout)
+		{
+			return(SystemResult_Timeout);
+		}
+	}
+
+
+	return(SystemResult_Ok);
+}
+//=== end WaitRxComplete ===========================================================
+
+//==================================================================================
+/**
+*  Todo: function description.
+*
+*  @return void .
+*/
+ESystemResult TAccelerometer::StartReadFifo()
+{
+	this->flagRx = false;
+	this->rxMode = AccelerometerRxMode_Fifo;
+
+	this->bufferWr[0] = ACCELEROMETER_I2C_FIFO_DATA_OUT_TAG;
+	if(HAL_I2C_Master_Seq_Transmit_IT(&hi2c2, ACCELEROMETER_I2C_DEV_ADDRESS, this->bufferWr, 1, I2C_FIRST_FRAME) != HAL_OK)
+	{
+		return(SystemResult_ErrorTxI2c2);
+	}
+
+	return(SystemResult_Ok);
+}
+//=== end StartReadFifo ============================================================
+
+//==================================================================================
+/**
+*  Todo: function description.
+*
+*  @return void .
+*/
+ESystemResult TAccelerometer::WriteRegister(uint8_t addressRegister, uint8_t byteData)
 {
 	this->bufferWr[0] = addressRegister;
 	this->bufferWr[1] = byteData;
 	if(HAL_I2C_Master_Transmit(&hi2c2, ACCELEROMETER_I2C_DEV_ADDRESS, this->bufferWr, 2, 100) != HAL_OK)
 	{
-		return(ACCELEROMETER_I2C_RESULT_OK + 1);  // Error
+		return(SystemResult_ErrorTxI2c2);
 	}
 
 
-	return(ACCELEROMETER_I2C_RESULT_OK);
+	return(SystemResult_Ok);
 }
 //=== end WriteRegister ============================================================
 
@@ -589,7 +721,22 @@ uint8_t TAccelerometer::WriteRegister(uint8_t addressRegister, uint8_t byteData)
 */
 void TAccelerometer::TxComplete()
 {
-	HAL_I2C_Master_Seq_Receive_IT(&hi2c2, ACCELEROMETER_I2C_DEV_ADDRESS, this->bufferRd, 1, I2C_LAST_FRAME);
+	if(this->rxMode == AccelerometerRxMode_Register)
+	{
+		HAL_I2C_Master_Seq_Receive_IT(&hi2c2,
+				ACCELEROMETER_I2C_DEV_ADDRESS,
+				this->bufferRd,
+				1,
+				I2C_LAST_FRAME);
+	}
+	else
+	{
+		HAL_I2C_Master_Seq_Receive_IT(&hi2c2,
+				ACCELEROMETER_I2C_DEV_ADDRESS,
+				this->bufferDmaFifo,
+				this->sizeDataFifo,
+				I2C_LAST_FRAME);
+	}
 }
 //=== end TxComplete ===============================================================
 
